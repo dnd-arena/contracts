@@ -7,7 +7,10 @@ export = async (deployer: Deployer) => {
   //
   // Reporter.reportContracts(["ERC20Mock", await erc20.getAddress()]);
 
-  const DNDArena = await deployer.deploy(DNDArena__factory, ["0x356FB935990D6f3aD46651be9569bF6c42B3C14d", "5000000000000000000000"]);
+  const DNDArena = await deployer.deploy(DNDArena__factory, [
+    "0x356FB935990D6f3aD46651be9569bF6c42B3C14d",
+    "5000000000000000000000",
+  ]);
 
   Reporter.reportContracts(["DNDArena", await DNDArena.getAddress()]);
 };

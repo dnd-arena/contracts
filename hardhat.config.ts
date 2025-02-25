@@ -75,7 +75,7 @@ const config: HardhatUserConfig = {
       url: `https://base-rpc.publicnode.com`,
       accounts: privateKey(),
       gasMultiplier: 1.9,
-    }
+    },
   },
   solidity: {
     version: "0.8.20",

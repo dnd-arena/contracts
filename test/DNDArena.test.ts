@@ -11,6 +11,9 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 describe("DNDArena", () => {
   const reverter = new Reverter();
 
+  const PRECISION = 10n ** 25n;
+  const PERCENTAGE_100 = PRECISION * 100n;
+
   let OWNER: SignerWithAddress;
   let FIRST: SignerWithAddress;
   let SECOND: SignerWithAddress;
@@ -18,6 +21,10 @@ describe("DNDArena", () => {
 
   let erc20: ERC20Mock;
   let dndArena: DNDArena;
+
+  function applyPercentage(value: bigint, percentage: bigint = PRECISION): bigint {
+    return (value * percentage) / PERCENTAGE_100;
+  }
 
   before(async () => {
     [OWNER, FIRST, SECOND, THIRD] = await ethers.getSigners();
@@ -404,6 +411,8 @@ describe("DNDArena", () => {
       await erc20.mint(SECOND, wei(300));
       await erc20.mint(THIRD, wei(300));
 
+      const initialTotalSupply = await erc20.totalSupply();
+
       await erc20.connect(FIRST).approve(dndArena, wei(300));
       await erc20.connect(SECOND).approve(dndArena, wei(300));
       await erc20.connect(THIRD).approve(dndArena, wei(300));
@@ -423,9 +432,11 @@ describe("DNDArena", () => {
       await expect(tx).to.emit(dndArena, "WinnerSet").withArgs(1, FIRST.address);
 
       expect(await erc20.balanceOf(dndArena)).to.be.equal(wei(200));
-      expect(await erc20.balanceOf(FIRST)).to.be.equal(wei(250));
+      expect(await erc20.balanceOf(FIRST)).to.be.equal(wei(50) + applyPercentage(wei(200), 99n * PRECISION));
       expect(await erc20.balanceOf(SECOND)).to.be.equal(wei(100));
-      expect(await erc20.balanceOf(THIRD)).to.be.equal(wei(350));
+      expect(await erc20.balanceOf(THIRD)).to.be.equal(wei(50) + applyPercentage(wei(300), 99n * PRECISION));
+
+      expect(await erc20.totalSupply()).to.be.equal(initialTotalSupply - applyPercentage(wei(500)));
 
       const expectedArena0 = [FIRST.address, wei(150), THIRD.address, 2n];
       const expectedArena1 = [FIRST.address, wei(100), SECOND.address, 1n];
@@ -444,6 +455,22 @@ describe("DNDArena", () => {
       expect(await dndArena.getUserArenas(THIRD)).to.be.deep.equal([expectedArena0, expectedArena2]);
     });
 
+    it("should burn tokens correctly", async () => {
+      await erc20.mint(FIRST, wei(300));
+      await erc20.mint(SECOND, wei(300));
+
+      const initialTotalSupply = await erc20.totalSupply();
+
+      await erc20.connect(FIRST).approve(dndArena, wei(300));
+      await erc20.connect(SECOND).approve(dndArena, wei(300));
+
+      await dndArena.connect(FIRST).createArena(wei(200));
+      await dndArena.connect(SECOND).acceptArena(0);
+      await dndArena.connect(OWNER).setWinner(0, SECOND.address);
+
+      expect(await erc20.totalSupply()).to.be.equal(initialTotalSupply - wei(4));
+    });
+
     it("should not allow to set winner if the caller is not the owner", async () => {
       await erc20.mint(FIRST, wei(300));
       await erc20.mint(SECOND, wei(300));
@@ -460,7 +487,9 @@ describe("DNDArena", () => {
     });
 
     it("should not allow to set winner if arena doesn't exist", async () => {
-      await expect(dndArena.connect(OWNER).setWinner(0, FIRST)).to.be.revertedWith("DNDArena: arena has not been accepted yet");
+      await expect(dndArena.connect(OWNER).setWinner(0, FIRST)).to.be.revertedWith(
+        "DNDArena: arena has not been accepted yet",
+      );
     });
 
     it("should not allow to set winner if arena has not been accepted yes", async () => {
@@ -469,7 +498,9 @@ describe("DNDArena", () => {
 
       await dndArena.connect(FIRST).createArena(wei(300));
 
-      await expect(dndArena.connect(OWNER).setWinner(0, FIRST)).to.be.revertedWith("DNDArena: arena has not been accepted yet");
+      await expect(dndArena.connect(OWNER).setWinner(0, FIRST)).to.be.revertedWith(
+        "DNDArena: arena has not been accepted yet",
+      );
     });
 
     it("should not allow to set winner if the winner is already set", async () => {
@@ -505,10 +536,16 @@ describe("DNDArena", () => {
     it("should pause and unpause the contract correctly", async () => {
       await dndArena.connect(OWNER).pause();
 
-      await expect(dndArena.connect(FIRST).createArena(wei(190))).to.be.revertedWithCustomError(dndArena, "EnforcedPause");
+      await expect(dndArena.connect(FIRST).createArena(wei(190))).to.be.revertedWithCustomError(
+        dndArena,
+        "EnforcedPause",
+      );
       await expect(dndArena.connect(FIRST).acceptArena(0)).to.be.revertedWithCustomError(dndArena, "EnforcedPause");
       await expect(dndArena.connect(FIRST).cancelArena(0)).to.be.revertedWithCustomError(dndArena, "EnforcedPause");
-      await expect(dndArena.connect(OWNER).setWinner(0, SECOND)).to.be.revertedWithCustomError(dndArena, "EnforcedPause");
+      await expect(dndArena.connect(OWNER).setWinner(0, SECOND)).to.be.revertedWithCustomError(
+        dndArena,
+        "EnforcedPause",
+      );
 
       await dndArena.connect(OWNER).unpause();
 

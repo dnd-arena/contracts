@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
+import {PERCENTAGE_100} from "@solarity/solidity-lib/utils/Globals.sol";
+
 contract DNDArena is Ownable, Pausable {
+    uint256 internal constant BURN_PERCENTAGE = 10 ** 25;
+
     struct Arena {
         address creator;
         uint96 bid;
@@ -13,7 +17,7 @@ contract DNDArena is Ownable, Pausable {
         uint96 winner;
     }
 
-    IERC20 public DNDToken;
+    ERC20Burnable public DNDToken;
 
     uint256 public minBid;
 
@@ -99,7 +103,12 @@ contract DNDArena is Ownable, Pausable {
 
         arenas[arenaId_].winner = arena_.creator == winner_ ? 1 : 2;
 
-        DNDToken.transfer(winner_, arena_.bid * 2);
+        uint256 awardAmount_ = arena_.bid * 2;
+
+        uint256 amountToBurn_ = (awardAmount_ * BURN_PERCENTAGE) / PERCENTAGE_100;
+        DNDToken.burn(amountToBurn_);
+
+        DNDToken.transfer(winner_, awardAmount_ - amountToBurn_);
 
         emit WinnerSet(arenaId_, winner_);
     }
@@ -139,7 +148,7 @@ contract DNDArena is Ownable, Pausable {
     function _setDNDToken(address tokenAddress_) private {
         require(tokenAddress_ != address(0), "DNDArena: zero address is not allowed");
 
-        DNDToken = IERC20(tokenAddress_);
+        DNDToken = ERC20Burnable(tokenAddress_);
     }
 
     function _setMinBid(uint256 minBid_) private {
