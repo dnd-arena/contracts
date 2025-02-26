@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { ZeroAddress } from "ethers";
 
-import { wei } from "@scripts";
+import { PERCENTAGE_100, PRECISION, wei } from "@scripts";
 import { Reverter } from "@test-helpers";
 
 import { ERC20Mock, DNDArena } from "@ethers-v6";
@@ -10,9 +10,6 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("DNDArena", () => {
   const reverter = new Reverter();
-
-  const PRECISION = 10n ** 25n;
-  const PERCENTAGE_100 = PRECISION * 100n;
 
   let OWNER: SignerWithAddress;
   let FIRST: SignerWithAddress;
