@@ -58,7 +58,6 @@ contract DNDStaking is AbstractStaking {
 
         uint256 rewardsToDistribute_ = effectiveRate_ * duration_;
 
-        // Ensure we never distribute more than available rewards
-        return rewardsToDistribute_ > rewardsBalance ? rewardsBalance : rewardsToDistribute_;
+        return rewardsToDistribute_;
     }
 }
